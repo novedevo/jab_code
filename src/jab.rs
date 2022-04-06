@@ -1,25 +1,25 @@
 #[derive(Clone, Debug)]
-pub struct JABSymbol<'a> {
+pub struct JABSymbol<'a, const L: usize> {
     payload: &'a str,
     palette_size: u8,
     x: usize,
     y: usize,
     ecc: ErrorCorrectionLevel,
-    data: Vec<Vec<char>>,
+    data: [[char; L]; L],
 }
-impl Default for JABSymbol<'_> {
+impl<const L: usize> Default for JABSymbol<'_, L> {
     fn default() -> Self {
         Self {
             payload: "testing",
-            palette_size: 3,
+            palette_size: 7,
             x: 1,
             y: 1,
             ecc: ErrorCorrectionLevel::Zero,
-            data: vec![vec![' '; 21]; 21],
+            data: [[' '; L]; L],
         }
     }
 }
-impl std::fmt::Display for JABSymbol<'_> {
+impl<const L: usize> std::fmt::Display for JABSymbol<'_, L> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for row in &self.data {
             for module in row {
@@ -30,15 +30,53 @@ impl std::fmt::Display for JABSymbol<'_> {
         Ok(())
     }
 }
-impl<'a> JABSymbol<'a> {
+impl<'a, const L: usize> JABSymbol<'a, L> {
     pub fn new(data: &'a str) -> Self {
         let mut ret = Self {
             payload: data,
             ..Default::default()
         };
         ret.add_finder_pattern();
+        ret.add_palette();
         ret
     }
+
+    fn metadata(&self) -> Vec<bool> {
+        let mut ret = vec![];
+        ret.extend_from_slice(&[false, true, false]); //N_c
+
+        ret.push(false); //SS
+        ret.extend_from_slice(&[false, false]); //VF
+        ret.extend_from_slice(&[false, false, false]); //MSK
+        ret.push(false); //SF
+
+        ret.extend_from_slice(&[false, false]); //V
+        ret.extend_from_slice(&[false; 10]); //E
+
+        //no bits needed for S since we don't support secondary symbols yet
+
+        ret
+    }
+
+    fn add_palette(&mut self) {
+        let palette = "KBGCRMYW";
+        let locations = [
+            (1, 4),
+            (2, 4),
+            (1, 5),
+            (2, 5),
+            (4, 2),
+            (5, 2),
+            (4, 1),
+            (5, 1),
+        ];
+
+        for (&(x, y), colour) in locations.iter().zip(palette.chars()) {
+            self.data[y][x] = colour;
+            self.data[L - 7 + y][L - 1 - x] = colour;
+        }
+    }
+
     fn overlay_pattern(&mut self, x_offset: usize, y_offset: usize, pattern: &[&str]) {
         for (y, row) in pattern.iter().enumerate() {
             for (x, char) in row.chars().enumerate() {
@@ -50,53 +88,44 @@ impl<'a> JABSymbol<'a> {
             }
         }
     }
-    #[rustfmt::skip]
     fn add_finder_pattern(&mut self) {
-        let upper_key = [
-            "KKK  ",
-            "K    ",
-            "K K K",
-            "    K",
-            "  KKK",
+        #[rustfmt::skip]
+        let ul = [
+            "BBB  ",
+            "BYY  ",
+            "BYBYB",
+            "  YYB",
+            "  BBB",
         ];
-        let ul_colour = [
-            "CC ",
-            "C C",
-            " CC",
+        #[rustfmt::skip]
+        let ur = [
+            "GGG  ",
+            "GMM  ",
+            "GMGMG",
+            "  MMG",
+            "  GGG",
         ];
-        let ur_colour = [
-            "YY ",
-            "Y Y",
-            " YY",
-        ];
-        let lower_key = [
-            " KK",
-            "K K",
-            "KK ",
-        ];
-        let ll_colour = [
-            "  CCC",
-            "    C",
-            "C C C",
-            "C    ",
-            "CCC  ",
-        ];
-        let lr_colour = [
+        #[rustfmt::skip]
+        let ll = [
             "  YYY",
-            "    Y",
-            "Y Y Y",
-            "Y    ",
+            "  BBY",
+            "YBYBY",
+            "YBB  ",
             "YYY  ",
         ];
+        #[rustfmt::skip]
+        let lr = [
+            "  MMM",
+            "  GGM",
+            "MGMGM",
+            "MGG  ",
+            "MMM  ",
+        ];
 
-        self.overlay_pattern(1,1, &upper_key);
-        self.overlay_pattern(15,1, &upper_key);
-        self.overlay_pattern(2,16, &lower_key);
-        self.overlay_pattern(16,16, &lower_key);
-        self.overlay_pattern(2,2, &ul_colour);
-        self.overlay_pattern(16, 2, &ur_colour);
-        self.overlay_pattern(1,15, &ll_colour);
-        self.overlay_pattern(15,15, &lr_colour);
+        self.overlay_pattern(1, 1, &ul);
+        self.overlay_pattern(L - 6, 1, &ur);
+        self.overlay_pattern(1, L - 6, &ll);
+        self.overlay_pattern(L - 6, L - 6, &lr);
     }
 }
 
