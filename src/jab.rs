@@ -5,7 +5,7 @@ pub struct JABSymbol<'a> {
     x: usize,
     y: usize,
     ecc: ErrorCorrectionLevel,
-    data: Vec<Vec<u8>>,
+    data: Vec<Vec<char>>,
 }
 impl Default for JABSymbol<'_> {
     fn default() -> Self {
@@ -15,7 +15,7 @@ impl Default for JABSymbol<'_> {
             x: 1,
             y: 1,
             ecc: ErrorCorrectionLevel::Zero,
-            data: vec![vec![4; 21]; 21],
+            data: vec![vec![' '; 21]; 21],
         }
     }
 }
@@ -39,104 +39,64 @@ impl<'a> JABSymbol<'a> {
         ret.add_finder_pattern();
         ret
     }
+    fn overlay_pattern(&mut self, x_offset: usize, y_offset: usize, pattern: &[&str]) {
+        for (y, row) in pattern.iter().enumerate() {
+            for (x, char) in row.chars().enumerate() {
+                if char == ' ' {
+                    continue;
+                } else {
+                    self.data[y + y_offset][x + x_offset] = char;
+                }
+            }
+        }
+    }
+    #[rustfmt::skip]
     fn add_finder_pattern(&mut self) {
-        self.add_finder_pattern_ul();
-        self.add_finder_pattern_ur();
-        self.add_finder_pattern_ll();
-        self.add_finder_pattern_lr();
-    }
+        let upper_key = [
+            "KKK  ",
+            "K    ",
+            "K K K",
+            "    K",
+            "  KKK",
+        ];
+        let ul_colour = [
+            "CC ",
+            "C C",
+            " CC",
+        ];
+        let ur_colour = [
+            "YY ",
+            "Y Y",
+            " YY",
+        ];
+        let lower_key = [
+            " KK",
+            "K K",
+            "KK ",
+        ];
+        let ll_colour = [
+            "  CCC",
+            "    C",
+            "C C C",
+            "C    ",
+            "CCC  ",
+        ];
+        let lr_colour = [
+            "  YYY",
+            "    Y",
+            "Y Y Y",
+            "Y    ",
+            "YYY  ",
+        ];
 
-    fn add_finder_pattern_ul(&mut self) {
-        self.data[1][1] = 3;
-        self.data[1][2] = 3;
-        self.data[1][3] = 3;
-        self.data[2][1] = 3;
-        self.data[3][1] = 3;
-
-        self.data[2][2] = 0;
-        self.data[2][3] = 0;
-        self.data[3][2] = 0;
-
-        self.data[3][3] = 3;
-
-        self.data[4][4] = 0;
-        self.data[4][3] = 0;
-        self.data[3][4] = 0;
-
-        self.data[5][5] = 3;
-        self.data[5][4] = 3;
-        self.data[5][3] = 3;
-        self.data[4][5] = 3;
-        self.data[3][5] = 3;
-    }
-    fn add_finder_pattern_ur(&mut self) {
-        self.data[1][15] = 3;
-        self.data[1][16] = 3;
-        self.data[1][17] = 3;
-        self.data[2][15] = 3;
-        self.data[3][15] = 3;
-
-        self.data[2][16] = 2;
-        self.data[2][17] = 2;
-        self.data[3][16] = 2;
-
-        self.data[3][17] = 3;
-
-        self.data[4][18] = 2;
-        self.data[4][17] = 2;
-        self.data[3][18] = 2;
-
-        self.data[5][19] = 3;
-        self.data[5][18] = 3;
-        self.data[5][17] = 3;
-        self.data[4][19] = 3;
-        self.data[3][19] = 3;
-    }
-    fn add_finder_pattern_ll(&mut self) {
-        self.data[15][1] = 0;
-        self.data[15][2] = 0;
-        self.data[15][3] = 0;
-        self.data[16][1] = 0;
-        self.data[17][1] = 0;
-
-        self.data[16][2] = 3;
-        self.data[16][3] = 3;
-        self.data[17][2] = 3;
-
-        self.data[17][3] = 0;
-
-        self.data[18][4] = 3;
-        self.data[18][3] = 3;
-        self.data[17][4] = 3;
-
-        self.data[19][5] = 0;
-        self.data[19][4] = 0;
-        self.data[19][3] = 0;
-        self.data[18][5] = 0;
-        self.data[17][5] = 0;
-    }
-    fn add_finder_pattern_lr(&mut self) {
-        self.data[15][15] = 2;
-        self.data[15][16] = 2;
-        self.data[15][17] = 2;
-        self.data[16][15] = 2;
-        self.data[17][15] = 2;
-
-        self.data[16][16] = 3;
-        self.data[16][17] = 3;
-        self.data[17][16] = 3;
-
-        self.data[17][17] = 2;
-
-        self.data[18][18] = 3;
-        self.data[18][17] = 3;
-        self.data[17][18] = 3;
-
-        self.data[19][19] = 2;
-        self.data[19][18] = 2;
-        self.data[19][17] = 2;
-        self.data[18][19] = 2;
-        self.data[17][19] = 2;
+        self.overlay_pattern(1,1, &upper_key);
+        self.overlay_pattern(15,1, &upper_key);
+        self.overlay_pattern(2,16, &lower_key);
+        self.overlay_pattern(16,16, &lower_key);
+        self.overlay_pattern(2,2, &ul_colour);
+        self.overlay_pattern(16, 2, &ur_colour);
+        self.overlay_pattern(1,15, &ll_colour);
+        self.overlay_pattern(15,15, &lr_colour);
     }
 }
 
